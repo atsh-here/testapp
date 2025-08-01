@@ -13,7 +13,19 @@
   <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
   <script>
     const { startRegistration, startAuthentication } = SimpleWebAuthnBrowser;
-    const BACKEND_URL = "https://backend-c2pv.onrender.com"; // ✅ use your real backend URL
+    const BACKEND_URL = "https://backend-c2pv.onrender.com";
+
+    // Convert base64url string to Uint8Array
+    function base64urlToBuffer(base64urlString) {
+      const padding = "=".repeat((4 - (base64urlString.length % 4)) % 4);
+      const base64 = base64urlString.replace(/-/g, "+").replace(/_/g, "/") + padding;
+      const rawData = atob(base64);
+      const buffer = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        buffer[i] = rawData.charCodeAt(i);
+      }
+      return buffer;
+    }
 
     async function registerPasskey() {
       const username = prompt("👤 Enter a username:");
@@ -27,7 +39,18 @@
         });
 
         const options = await res.json();
-        console.log("📦 Registration options:", options);
+
+        // Convert challenge & user.id to Uint8Array
+        options.challenge = base64urlToBuffer(options.challenge);
+        options.user.id = base64urlToBuffer(options.user.id);
+
+        // Convert excludeCredentials[].id if any
+        if (options.excludeCredentials) {
+          options.excludeCredentials = options.excludeCredentials.map((cred) => ({
+            ...cred,
+            id: base64urlToBuffer(cred.id)
+          }));
+        }
 
         const attResp = await startRegistration(options);
         console.log("🔐 Attestation:", attResp);
@@ -58,7 +81,16 @@
         });
 
         const options = await res.json();
-        console.log("📦 Login options:", options);
+
+        // Convert challenge to Uint8Array
+        options.challenge = base64urlToBuffer(options.challenge);
+
+        if (options.allowCredentials) {
+          options.allowCredentials = options.allowCredentials.map((cred) => ({
+            ...cred,
+            id: base64urlToBuffer(cred.id)
+          }));
+        }
 
         const authResp = await startAuthentication(options);
         console.log("🔑 Auth response:", authResp);
