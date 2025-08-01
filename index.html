@@ -46,6 +46,7 @@
         body: JSON.stringify({ username })
       });
       const options = await challengeResp.json();
+      console.log("Challenge options from server:", options);
       const authResp = await startAuthentication(options);
 
       const verifyResp = await fetch(`${BACKEND_URL}/login-verify`, {
