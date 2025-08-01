@@ -15,7 +15,7 @@
     const { startRegistration, startAuthentication } = SimpleWebAuthnBrowser;
     const BACKEND_URL = "https://backend-c2pv.onrender.com";
 
-    // Convert base64url string to Uint8Array
+    // Base64url to Uint8Array
     function base64urlToBuffer(base64urlString) {
       const padding = "=".repeat((4 - (base64urlString.length % 4)) % 4);
       const base64 = base64urlString.replace(/-/g, "+").replace(/_/g, "/") + padding;
@@ -38,13 +38,25 @@
           body: JSON.stringify({ username })
         });
 
-        const options = await res.json();
+        const contentType = res.headers.get("Content-Type");
 
-        // Convert challenge & user.id to Uint8Array
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error("❌ Backend error:\n" + text);
+        }
+
+        if (!contentType.includes("application/json")) {
+          const html = await res.text();
+          throw new Error("❌ Expected JSON, got HTML:\n" + html);
+        }
+
+        const options = await res.json();
+        console.log("✅ Challenge options from server:", options);
+
+        // Convert values
         options.challenge = base64urlToBuffer(options.challenge);
         options.user.id = base64urlToBuffer(options.user.id);
 
-        // Convert excludeCredentials[].id if any
         if (options.excludeCredentials) {
           options.excludeCredentials = options.excludeCredentials.map((cred) => ({
             ...cred,
@@ -53,24 +65,29 @@
         }
 
         const attResp = await startRegistration(options);
-        console.log("🔐 Attestation:", attResp);
+        console.log("🔐 Attestation response:", attResp);
 
         const verifyRes = await fetch(`${BACKEND_URL}/register-verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, attestationResponse: attResp })
+          body: JSON.stringify({
+            username,
+            attestationResponse: attResp
+          })
         });
 
         const result = await verifyRes.text();
-        alert(result);
+        if (!verifyRes.ok) throw new Error(result);
+
+        alert("✅ Registered successfully!");
       } catch (err) {
         console.error("❌ Registration failed:", err);
-        alert("❌ Registration error:\n" + err.message);
+        alert(err.message);
       }
     }
 
     async function loginWithPasskey() {
-      const username = prompt("👤 Enter username to login:");
+      const username = prompt("👤 Enter username:");
       if (!username) return;
 
       try {
@@ -80,11 +97,22 @@
           body: JSON.stringify({ username })
         });
 
+        const contentType = res.headers.get("Content-Type");
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error("❌ Backend error:\n" + text);
+        }
+
+        if (!contentType.includes("application/json")) {
+          const html = await res.text();
+          throw new Error("❌ Expected JSON, got HTML:\n" + html);
+        }
+
         const options = await res.json();
+        console.log("✅ Login options from server:", options);
 
-        // Convert challenge to Uint8Array
         options.challenge = base64urlToBuffer(options.challenge);
-
         if (options.allowCredentials) {
           options.allowCredentials = options.allowCredentials.map((cred) => ({
             ...cred,
@@ -98,14 +126,19 @@
         const verifyRes = await fetch(`${BACKEND_URL}/login-verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, authenticationResponse: authResp })
+          body: JSON.stringify({
+            username,
+            authenticationResponse: authResp
+          })
         });
 
         const result = await verifyRes.text();
-        alert(result);
+        if (!verifyRes.ok) throw new Error(result);
+
+        alert("✅ Login successful!");
       } catch (err) {
         console.error("❌ Login failed:", err);
-        alert("❌ Login error:\n" + err.message);
+        alert(err.message);
       }
     }
   </script>
