@@ -8,55 +8,73 @@
 <body>
   <h2>🔐 Passkey Test Page</h2>
   <button onclick="registerPasskey()">Register Passkey</button>
-  <button onclick="loginWithPasskeyPrompt()">Login with Passkey</button>
+  <button onclick="loginWithPasskey()">Login with Passkey</button>
 
   <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
   <script>
     const { startRegistration, startAuthentication } = SimpleWebAuthnBrowser;
-    const BACKEND_URL = "https://backend-c2pv.onrender.com"; // Replace with your Flask Codespace preview URL
+    const BACKEND_URL = "https://backend-c2pv.onrender.com"; // ✅ use your real backend URL
 
     async function registerPasskey() {
-      const username = prompt("Enter a username to register:");
+      const username = prompt("👤 Enter a username:");
       if (!username) return;
 
-      const challengeResp = await fetch(`${BACKEND_URL}/register-challenge`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username })
-      });
-      const options = await challengeResp.json();
-      console.log("Challenge options from server:", options);
-      const attResp = await startRegistration(options);
+      try {
+        const res = await fetch(`${BACKEND_URL}/register-challenge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username })
+        });
 
-      const verifyResp = await fetch(`${BACKEND_URL}/register-verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, ...attResp })
-      });
-      const result = await verifyResp.text();
-      alert(result);
+        const options = await res.json();
+        console.log("📦 Registration options:", options);
+
+        const attResp = await startRegistration(options);
+        console.log("🔐 Attestation:", attResp);
+
+        const verifyRes = await fetch(`${BACKEND_URL}/register-verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, attestationResponse: attResp })
+        });
+
+        const result = await verifyRes.text();
+        alert(result);
+      } catch (err) {
+        console.error("❌ Registration failed:", err);
+        alert("❌ Registration error:\n" + err.message);
+      }
     }
 
-    async function loginWithPasskeyPrompt() {
-      const username = prompt("Enter your username to login:");
+    async function loginWithPasskey() {
+      const username = prompt("👤 Enter username to login:");
       if (!username) return;
 
-      const challengeResp = await fetch(`${BACKEND_URL}/login-challenge`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username })
-      });
-      const options = await challengeResp.json();
-      console.log("Challenge options from server:", options);
-      const authResp = await startAuthentication(options);
+      try {
+        const res = await fetch(`${BACKEND_URL}/login-challenge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username })
+        });
 
-      const verifyResp = await fetch(`${BACKEND_URL}/login-verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, ...authResp })
-      });
-      const result = await verifyResp.text();
-      alert(result);
+        const options = await res.json();
+        console.log("📦 Login options:", options);
+
+        const authResp = await startAuthentication(options);
+        console.log("🔑 Auth response:", authResp);
+
+        const verifyRes = await fetch(`${BACKEND_URL}/login-verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, authenticationResponse: authResp })
+        });
+
+        const result = await verifyRes.text();
+        alert(result);
+      } catch (err) {
+        console.error("❌ Login failed:", err);
+        alert("❌ Login error:\n" + err.message);
+      }
     }
   </script>
 </body>
