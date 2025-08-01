@@ -25,6 +25,7 @@
         body: JSON.stringify({ username })
       });
       const options = await challengeResp.json();
+      console.log("Challenge options from server:", options);
       const attResp = await startRegistration(options);
 
       const verifyResp = await fetch(`${BACKEND_URL}/register-verify`, {
